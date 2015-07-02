@@ -8,23 +8,37 @@
 
     <body>
         <div id="stream">
-        	<h1>Clean Chat</h1>
-        	<input type="text" id="msgInput" placeholder="Don't be evil..."/>
-            <button type="submit" id="tweet-submit">Submit</button>
+        	<h1>
+            <span>Interval Chat</span>
+            <span id="status"></span>
+          </h1>
+        	<input type="number" id="timer" placeholder="milliseconds"/>
+            <button type="submit" id="start-submit">Start</button>
+            <button type="submit" id="stop-submit">Stop</button>
             <div id="msg-box"></div>
         </div>
 
         <div id="here">
+
+        <div id="counts">
+            <h1>
+              <span># in queue: </span>
+              <span id="queue_count"></span>
+            </h1>
+        </div>
+
             <h1>Who's here?!<a href="#" id="login"><img style="height:auto; width:auto; max-width:32px; max-height:32px;" src="twitter_white.png"/>Sign in With Twitter</a>
             </h1>
         </div>
 
+
+
         <script>
         //STEP 1: Create references
-        var ref = new Firebase('https://sanichat.firebaseio.com/');
+        var ref = new Firebase('https://sanichat-tester.firebaseio.com/');
         var usersRef = ref.child('users');
         var messagesRef = ref.child('messages');
-        var queueRef = ref.child('queue');
+        var queueRef = ref.child('queue/tasks');
 
         var currentUser = null;
 
@@ -54,21 +68,93 @@
             $("<div id='user'><img src=" + user.pic + "/><span id='username'>@" + user.username + "</span></div>").appendTo($('#here'));
         });
 
+        var queueCount = 0;
+        //STEP 4: Add user image
+
+        // queueRef.on("value", function(snapshot) {
+        //   console.log(snapshot.val());
+        // }, function (errorObject) {
+        //   console.log("The read failed: " + errorObject.code);
+        // });
+
+        queueRef.on('child_added', function(snapshot){
+          queueCount++;
+          $('#queue_count').text(queueCount);
+        });
+        queueRef.on('child_removed', function(snapshot){
+          queueCount--;
+          $('#queue_count').text(queueCount);
+        });
+
+
+
+        var interval;
+        var count;
+        $('#timer').val(4000);
+
         //STEP 5: Store messages in Firebase
-        $('#tweet-submit').on('click', function () {
-            if (currentUser !== null) {
-            var message = $('#msgInput').val();            
-            queueRef.push({user: currentUser.uid, username: currentUser.twitter.username, message: message, published: new Date().getTime()});
-            $('#msgInput').val('');
+        $('#start-submit').on('click', function () {
+
+          if (numMessages)
+            count = numMessages + queueCount;
+
+          if (currentUser !== null) {
+            var timer = $('#timer').val();     
+
+
+
+            interval = setInterval(function() {
+              var message = "where is the bad word gonna be"; 
+              var array = message.split(" ");
+              var num = count % 7;
+              array[num] = "fuck";
+              message = array.join(" ");
+              count++;
+
+              queueRef.push({
+                user: currentUser.uid, 
+                username: currentUser.twitter.username, 
+                message: message, 
+                published: new Date().getTime(),
+                count: count});
+            }, timer);
+
+            $('#status').text('running');
+          } else {
+            alert('You must login with Twitter to post!');
+          }
+        });
+
+
+        //STEP 5: Store messages in Firebase
+        $('#stop-submit').on('click', function () {
+          if (currentUser !== null) {
+            clearInterval(interval);
+            $('#status').text('stopped');
+
           } else {
             alert('You must login with Twitter to post!');
           }
         });
 
         //STEP 6: Add messages to DOM in realtime
+        var numMessages = 0;
         messagesRef.on('child_added', function(snapshot){
             var message = snapshot.val();
-            $('#msg-box').append($("<div class='msg-text'>").text(message.username).append('<br/>').append($('<span/>').text(message.message)));
+            $('#msg-box').prepend(
+              $("<div class='msg-text'>").text(message.username)
+              .append('<br/>')
+              .append($('<span/>').text(message.message))
+              .append('<br/>')
+              .append($('<strong/>').text('count: ' + message.count))
+              .append('<br/>')
+              .append($('<span/>').text('processed: ' + message.processed))
+              .append('<br/>')
+              .append($('<span/>').text('diff: ' + (message.processed - message.published)))
+              .append('<br/>')
+              .append($('<span/>').text('late: ' + (message.late ? 'true' : 'false')))
+            );
+            numMessages++;
         });
         </script>
     </body>

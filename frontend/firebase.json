@@ -1,5 +1,5 @@
 {
-  "firebase": "sanichat",
+  "firebase": "sanichat-tester",
   "public": ".",
   "ignore": [
     "firebase.json",
